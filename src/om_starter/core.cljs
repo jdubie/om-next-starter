@@ -14,6 +14,11 @@
    :value [:app/title]
    :action (fn [] (swap! state assoc :app/title new-title))})
 
+(defmethod mutate 'app/loading?
+  [{:keys [state]} _ _]
+  {:value [:loading?]
+   :action (fn [] (swap! state assoc :loading? true))})
+
 (defmulti read om/dispatch)
 
 (defmethod read :app/title
@@ -23,28 +28,40 @@
       {:value v :remote true}
       {:remote true})))
 
+(defmethod read :loading?
+  [{:keys [state] :as env} _ _]
+  (let [st @state]
+    (let [v (get st :loading? false)]
+      (if v
+        {:value v :remote true}
+        {:value v}))))
+
 (defui Root
   static om/IQuery
   (query [this]
-    '[:app/title])
+    '[:app/title :loading?])
   Object
   (render [this]
-    (let [{:keys [app/title]} (om/props this)]
+    (let [{:keys [app/title loading?]} (om/props this)]
       (dom/div nil
         (dom/p nil title)
+        (dom/p nil (pr-str loading?))
         (dom/input #js {:ref :title})
         (dom/button #js {:onClick
                          (fn [e] (let [new-title (.-value (dom/node this :title))]
                                    (om/transact! this `[(app/update-title {:new-title ~new-title})
-                                                        :app/title])))} "update")))))
+                                                        (app/loading?)
+                                                        :app/title
+                                                        :loading?
+                                                        ])))} "update")))))
 
-(defonce parser (om/parser {:read read :mutate mutate}))
+(def parser (om/parser {:read read :mutate mutate}))
 
-(defonce reconciler
+(def reconciler
   (om/reconciler
     {:state (atom {})
      :normalize true
-     :merge-tree merge
+     :merge-tree (fn [a b] (println "|merge" a b) (merge a b))
      :parser parser
      :send (util/transit-post "/api")}))
 

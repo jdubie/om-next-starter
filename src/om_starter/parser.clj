@@ -9,6 +9,10 @@
       {:value value}
       {:value "not-found"})))
 
+(defmethod readf :loading?
+  [_ _ _]
+  {:value false})
+
 (defmulti mutatef (fn [_ k _] k))
 
 (defmethod mutatef 'app/update-title
